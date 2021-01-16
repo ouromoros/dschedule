@@ -125,7 +125,6 @@ class Scheduler {
   }
 
   fire(taskId: string, opts: FireOptions) {
-    const options = this.registerMap[taskId];
     const exec = {
       taskId,
       execId: uuid(),
