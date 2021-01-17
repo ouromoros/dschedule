@@ -2,7 +2,7 @@
 
 Client-side job scheduler for distributed application
 
-## example
+## Example
 
 ### Basic Usage
 
