@@ -172,7 +172,7 @@ class Scheduler {
         retry: options.retry,
         retryTimeout: options.retryTimeout,
       };
-      const success = await this.broker.lockAndAddTimeout(exec, 10000);
+      const success = await this.broker.lockAndAddTimeout(exec, 1000);
       if (success) {
         this.pushExecution(exec);
       }
