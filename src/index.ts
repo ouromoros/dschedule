@@ -3,6 +3,7 @@ import ioredis from "ioredis";
 import { v4 as uuid } from "uuid";
 import { RedisBroker } from "./redis_impl";
 import { Execution, parseExec } from "./struct";
+import { sleep } from "./sleep";
 
 interface Handler {
   (data?: string): boolean | Promise<boolean>;
@@ -32,10 +33,6 @@ interface FireOptions {
 enum Status {
   RUNNING,
   STOPPED,
-}
-
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 class Scheduler {

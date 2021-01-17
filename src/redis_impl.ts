@@ -1,10 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import ioredis from "ioredis";
 import { encodeExec, Execution } from "./struct";
-
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+import { sleep } from "./sleep";
 
 export class RedisBroker {
   private client: ioredis.Redis;
