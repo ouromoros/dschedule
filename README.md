@@ -1,10 +1,10 @@
-## dschedule
+# dschedule
 
 Client-side job scheduler for distributed application
 
-### example
+## example
 
-#### Basic Usage
+### Basic Usage
 
 ```js
 const scheduler = createScheduler({
@@ -26,7 +26,7 @@ scheduler.start();
 
 The scheduler takes care of scheduling tasks one at a time and distribute tasks to multiple machines. When multiple instances of schedulers with the same config is running, the registered task will be fired only once and run only once (actually it's *at-most-once* in the case of unrecoverage error). In a distributed environment, a fault-tolerant cron scheuduler is achieved via running multiple application instances with the same config.
 
-#### Manually Fire Task
+### Manually Fire Task
 
 After calling `start()`, the scheduler will be listening for tasks and run them with the callback provided.
 ```js
@@ -36,9 +36,9 @@ scheduler.bind("taskA", () => {
 scheduler.start();
 ```
 
-#### Fire a task with additional data
+### Fire a task with additional data
 
-#### Fire a task with delay
+### Fire a task with delay
 
 ## More
 
