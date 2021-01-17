@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import ioredis from "ioredis";
-import { encodeExec, Execution, parseExec } from "./struct";
+import { encodeExec, Execution } from "./struct";
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -25,7 +25,11 @@ export class RedisBroker {
       keyPrefix: this.prefix,
     });
 
-    // KYES[0]: execId KEYS[1] timeoutQueue ARGV[0] currentTimestamp
+    /**
+     * KEYS[0]: execId
+     * KEYS[1]: timeoutQueue
+     * ARGV[0]: currentTimestamp
+     */
     const maybeAddTimeoutScript = `
     local val = redis.call('GET, KEYS[0])
     local exec = cjson.decode(val)
@@ -33,9 +37,28 @@ export class RedisBroker {
       redis.call('ZADD', KEYS[1], val, tonumber(ARGV[1]) + exec.retryTimeout)
     end
     `;
+    /**
+     * KEYS[0]: lockName
+     * KEYS[1]: timeoutQueue
+     * KEYS[2]: execId
+     * ARGV[0]: lockTimeout
+     * ARGV[1]: execTimeoutStamp
+     * ARGV[2]: exec
+     */
+    const lockAndAddTimeoutScript = `
+    local val = redis.call('SETNX', KEYS[0])
+    if val == 0 then
+      return 0
+    redis.call('EXPIRE', KEYS[0], ARGV[0])
+    redis.call('ZADD)
+    `;
     this.client.defineCommand("maybeAddTimeout", {
       numberOfKeys: 2,
       lua: maybeAddTimeoutScript,
+    });
+    this.client.defineCommand("lockAndAddTimeout", {
+      numberOfKeys: 2,
+      lua: lockAndAddTimeoutScript,
     });
   }
 
@@ -138,12 +161,30 @@ export class RedisBroker {
     }
   }
 
-  async laquire(lock: string, timeout: number): Promise<boolean> {
-    const [setResult] = await this.client
-      .multi()
-      .setnx(lock, "1")
-      .expire(lock, timeout)
-      .exec();
-    return setResult[1] === "1";
+  async lockAndAddTimeout(
+    exec: Execution,
+    lockTimeout: number
+  ): Promise<boolean> {
+    const lockKey = `${exec.execId}:lk`;
+    // TODO: implement atomic timeout
+    if (false && exec.retry && exec.retryTimeout) {
+      // @ts-ignore
+      const result = await this.client.acquireAndAddTimeout(
+        lockKey,
+        this.timeoutQueue,
+        exec.execId,
+        lockTimeout,
+        Date.now() + exec.retryTimeout!,
+        encodeExec(exec)
+      );
+      return result === "1";
+    } else {
+      const [setResult] = await this.client
+        .multi()
+        .setnx(lockKey, "1")
+        .expire(lockKey, lockTimeout)
+        .exec();
+      return setResult[1] === "1";
+    }
   }
 }

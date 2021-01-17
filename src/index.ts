@@ -14,8 +14,7 @@ interface SchedulerOptions {
 }
 
 interface ScheduleOptions {
-  cron?: boolean;
-  cronExpr?: string;
+  cronExpr: string;
 
   retry?: boolean;
   retryTimeout?: number;
@@ -55,19 +54,64 @@ class Scheduler {
     this.broker = new RedisBroker(redisConfig);
   }
 
+  /**
+   * Once `start()` is called, the scheduler would start scheduling registered tasks and listen for binded tasks
+   */
   start() {
     this.status = Status.RUNNING;
     this.startSchedules();
 
-    this.checkScheduledTasks();
+    this.checkTimeoutTasks();
     this.checkBindTasks();
   }
 
+  /**
+   * Stop all actions including listen for tasks and schedule tasks
+   */
   stop() {
     this.status = Status.STOPPED;
   }
 
-  private async checkScheduledTasks() {
+  /**
+   * Register a job to be scheduled according to cronExpr
+   * @param taskId unique taskId for a task
+   * @param options specify cronExpr and other strategies for scheduling
+   */
+  register(taskId: string, options: ScheduleOptions) {
+    this.registerMap[taskId] = options;
+  }
+
+  /**
+   * After bind a task to the scheduler, the scheduler will try to pull task from task queue with specified
+   * `taskId` and take action specified by `handler`
+   * @param taskId unique id of a task
+   * @param handler specify action when task arrives
+   */
+  bind(taskId: string, handler: Handler) {
+    this.bindMap[taskId] = handler;
+  }
+
+  /**
+   * Push a task with `taskId` to task queue
+   * @param taskId unique id of a task
+   * @param opts specify additional data and retry stratigies
+   */
+  fire(taskId: string, opts: FireOptions) {
+    const exec = {
+      taskId,
+      execId: uuid(),
+      data: opts.data,
+      retry: opts.retry,
+      retryTimeout: opts.retryTimeout,
+    };
+    if (!opts.delay) {
+      this.pushExecution(exec);
+    } else {
+      this.pushDelayed(exec, opts.delay);
+    }
+  }
+
+  private async checkTimeoutTasks() {
     while (this.status === Status.RUNNING) {
       const exe = await this.broker.tpop();
       const execution = parseExec(exe);
@@ -107,14 +151,6 @@ class Scheduler {
     }
   }
 
-  register(taskId: string, options: ScheduleOptions = {}) {
-    this.registerMap[taskId] = options;
-  }
-
-  bind(taskId: string, handler: Handler) {
-    this.bindMap[taskId] = handler;
-  }
-
   private pushExecution(execution: Execution) {
     this.broker.rpush(execution);
   }
@@ -124,54 +160,29 @@ class Scheduler {
     this.broker.tpush(timeStamp, exec);
   }
 
-  fire(taskId: string, opts: FireOptions) {
-    const exec = {
-      taskId,
-      execId: uuid(),
-      data: opts.data,
-      retry: opts.retry,
-      retryTimeout: opts.retryTimeout,
-    };
-    if (!opts.delay) {
-      this.pushExecution(exec);
-    } else {
-      this.pushDelayed(exec, opts.delay);
-    }
-  }
-
-  private getScheduleTasks() {
-    const result = [];
-    // eslint-disable-next-line guard-for-in
-    for (const taskId in this.registerMap) {
-      const options = this.registerMap[taskId];
-      if (options.cron) {
-        result.push({ taskId, options });
-      }
-    }
-    return result;
-  }
-
   private async startSchedule(taskId: string, options: ScheduleOptions) {
-    const cron = parseExpression(options.cronExpr!);
+    const cron = parseExpression(options.cronExpr);
     let nextTime = cron.next().getTime();
     while (this.status === Status.RUNNING && nextTime) {
       await sleep(nextTime - Date.now());
-      // TODO: Change to Atomic operation
-      const success = await this.broker.laquire(
-        `sched:${taskId}:${nextTime}`,
-        10000
-      );
+      const execId = `sched:${taskId}:${nextTime}`;
+      const exec = {
+        taskId,
+        execId,
+        retry: options.retry,
+        retryTimeout: options.retryTimeout,
+      };
+      const success = await this.broker.lockAndAddTimeout(exec, 10000);
       if (success) {
-        this.fire(taskId, {});
+        this.pushExecution(exec);
       }
       nextTime = cron.next().getTime();
     }
   }
 
   private startSchedules() {
-    const tasks = this.getScheduleTasks();
-    for (const { taskId, options } of tasks) {
-      this.startSchedule(taskId, options);
+    for (const taskId in this.registerMap) {
+      this.startSchedule(taskId, this.registerMap[taskId]);
     }
   }
 }
