@@ -46,3 +46,8 @@ scheduler.start();
 - [ ] Write tests
 - [ ] Write Architecture
 - [ ] Benchmark
+
+## More distantly
+
+- [ ] Add support for Redis stream
+- [ ] More powerful features

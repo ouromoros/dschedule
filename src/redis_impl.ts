@@ -47,7 +47,8 @@ export class RedisBroker {
     if val == 0 then
       return 0
     redis.call('EXPIRE', KEYS[0], ARGV[0])
-    redis.call('ZADD)
+    redis.call('SET', KEYS[2], ARGV[2])
+    redis.call('ZADD', KEYS[1], KEY[2], ARGV[1])
     `;
     this.client.defineCommand("maybeAddTimeout", {
       numberOfKeys: 2,
@@ -105,12 +106,16 @@ export class RedisBroker {
     return true;
   }
 
-  clearTimeout(execId: string) {
-    return this.client
+  async clearTimeout(execId: string) {
+    const results = await this.client
       .multi()
       .zrem(this.timeoutQueue, execId)
       .del(execId)
       .exec();
+    for (const result of results) {
+      if (result[0] !== null) return false;
+    }
+    return true;
   }
 
   async tpeek(): Promise<[string | null, number | null]> {
@@ -158,13 +163,16 @@ export class RedisBroker {
     }
   }
 
+  /**
+   * @param exec
+   * @param lockTimeout seconds
+   */
   async lockAndAddTimeout(
     exec: Execution,
     lockTimeout: number
   ): Promise<boolean> {
     const lockKey = `${exec.execId}:lk`;
-    // TODO: implement atomic timeout
-    if (false && exec.retry && exec.retryTimeout) {
+    if (exec.retry && exec.retryTimeout) {
       // @ts-ignore
       const result = await this.client.acquireAndAddTimeout(
         lockKey,

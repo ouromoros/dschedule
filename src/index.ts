@@ -9,7 +9,7 @@ interface Handler {
   (data?: string): boolean | Promise<boolean>;
 }
 
-interface SchedulerOptions {
+export interface SchedulerOptions {
   storageType: "redis";
   storageConfig: ioredis.RedisOptions;
 }
@@ -21,7 +21,7 @@ interface ScheduleOptions {
   retryTimeout?: number;
 }
 
-interface FireOptions {
+interface PushOptions {
   data?: string;
 
   delay?: number;
@@ -93,7 +93,7 @@ class Scheduler {
    * @param taskId unique id of a task
    * @param opts specify additional data and retry stratigies
    */
-  fire(taskId: string, opts: FireOptions) {
+  push(taskId: string, opts: PushOptions) {
     const exec = {
       taskId,
       execId: uuid(),
@@ -106,6 +106,14 @@ class Scheduler {
     } else {
       this.pushDelayed(exec, opts.delay);
     }
+  }
+
+  clear() {
+    if (this.status === Status.RUNNING) {
+      throw Error("Can only clear when Scheduler is not running");
+    }
+    this.bindMap = {};
+    this.registerMap = {};
   }
 
   private async checkTimeoutTasks() {
@@ -184,6 +192,6 @@ class Scheduler {
   }
 }
 
-export function createScheduler(opts: SchedulerOptions) {
+export function createScheduler(opts: SchedulerOptions): Scheduler {
   return new Scheduler(opts.storageConfig);
 }
