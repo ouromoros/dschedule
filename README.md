@@ -1,14 +1,14 @@
-# dschedule
+# schedule-mq
 
 Client-side job scheduler for distributed application
 
 ## Introduction
 
-`dschedule` is a client-side library for scheduling tasks. The tasks can be configured to be run with at-least-once or at-most-once semantics.
+`schedule-mq` is a client-side library for scheduling tasks. The tasks can be configured to be run with at-least-once or at-most-once semantics.
 
-Distributed applications can use `dschedule` to easily schedule jobs with a variety of options, including automatic failover, cronjob and delayed job.
+Distributed applications can use `schedule-mq` to easily schedule jobs with a variety of options, including automatic failover, cronjob and delayed job.
 
-`dschedule` uses Redis as its backend and is as reliable as the Redis backend is. In case Redis instance crashes, how many pending/delayed tasks `dschedule` can recover depends on Redis' persistence config.
+`schedule-mq` uses Redis as its backend and is as reliable as the Redis backend is. In case Redis instance crashes, how many pending/delayed tasks `schedule-mq` can recover depends on Redis' persistence config.
 
 ## Example
 

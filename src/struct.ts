@@ -1,7 +1,6 @@
 export interface Execution {
   taskId: string;
   execId: string;
-  scheduled?: number;
   data?: string;
   retry?: boolean;
   retryTimeout?: number;
