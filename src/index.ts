@@ -51,7 +51,7 @@ class Scheduler {
     this.logger = console;
     this.opts = opts;
 
-    opts.pollInterval = opts.pollInterval || 500;
+    opts.pollInterval = opts.pollInterval || 1000;
     opts.redisPrefix = opts.redisPrefix || "_schedule_mq:";
 
     this.broker = new RedisBroker(
