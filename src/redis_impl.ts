@@ -6,34 +6,43 @@ import { sleep } from "./sleep";
 
 const LuaScript = {
   /**
-   * KEYS[0]: execIdKey
-   * KEYS[1]: timeoutQueue
-   * ARGV[0]: currentTimestamp
+   * KEYS[1]: execIdKey
+   * KEYS[2]: timeoutQueue
+   * ARGV[1]: currentTimestamp
    */
-  maybeAddTimeoutScript: `
-local val = redis.call('GET', KEYS[0])
-local exec = cjson.decode(val)
-if val.retry ~= nil and val.retryTimeout ~= nil then
-  redis.call('ZADD', exec.execId, val, tonumber(ARGV[0]) + exec.retryTimeout)
+  tryPopTimeoutQueueScript: `
+local val = redis.call('GET', KEYS[1])
+if val == false then
+  return false
 end
-return 1
+local exec = cjson.decode(val)
+local t = redis.call('ZSCORE', KEYS[2], exec.execId)
+if t == false or tonumber(t) > tonumber(ARGV[1]) then
+  return false
+end
+if val.retry and val.retryTimeout then
+  redis.call('ZADD', KEYS[2], exec.execId, tonumber(ARGV[1]) + exec.retryTimeout, '')
+else
+  redis.call('ZREM', KEYS[2], exec.execId)
+end
+return val
 `,
   /**
-   * KEYS[0]: lockName
-   * KEYS[1]: timeoutQueue
-   * KEYS[2]: execIdKey
-   * ARGV[0]: lockTimeout
-   * ARGV[1]: execTimeoutStamp
-   * ARGV[2]: exec
+   * KEYS[1]: lockName
+   * KEYS[2]: timeoutQueue
+   * KEYS[3]: execIdKey
+   * ARGV[1]: lockTimeout
+   * ARGV[2]: execTimeoutStamp
+   * ARGV[3]: exec
    */
   lockAndAddTimeoutScript: `
-local val = redis.call('SETNX', KEYS[0])
-local exec = cjson.decode(ARGV[2])
+local val = redis.call('SETNX', KEYS[1])
+local exec = cjson.decode(ARGV[3])
 if val == 0 then
   return 0
-redis.call('EXPIRE', KEYS[0], ARGV[0])
-redis.call('SET', KEYS[2], ARGV[2])
-redis.call('ZADD', KEYS[1], exec.execId, ARGV[1])
+redis.call('EXPIRE', KEYS[1], ARGV[1])
+redis.call('SET', KEYS[3], ARGV[3])
+redis.call('ZADD', KEYS[2], exec.execId, ARGV[2])
 `,
 };
 
@@ -115,8 +124,8 @@ export class RedisBroker {
     const execKey = this.k(execId);
     const results = await this.client
       .multi()
-      .zrem(this.timeoutQueue, execKey)
-      .del(execId)
+      .zrem(this.timeoutQueue, execId)
+      .del(execKey)
       .exec();
     for (const result of results) {
       if (result !== null) return false;
@@ -127,8 +136,8 @@ export class RedisBroker {
   async tpeek(): Promise<[string | null, number | null]> {
     const results = await this.client.zrange(
       this.timeoutQueue,
-      1,
-      1,
+      0,
+      0,
       "WITHSCORES"
     );
     if (results.length === 0) return [null, null];
@@ -138,25 +147,19 @@ export class RedisBroker {
   async tTryPop(execId: string): Promise<string | null> {
     const timestamp = Date.now();
     const execKey = this.k(execId);
-    const [zremResult, getResult, delResult] = await this.client
-      .multi()
-      .zrem(this.timeoutQueue, execId)
-      .get(execKey)
-      .eval(
-        LuaScript.maybeAddTimeoutScript,
-        2,
-        [execKey, this.timeoutQueue],
-        timestamp.toString()
-      )
-      .exec();
-    if (typeof zremResult != "number" || zremResult !== 1) {
+    const result = await this.client.eval(
+      LuaScript.tryPopTimeoutQueueScript,
+      2,
+      [execKey, this.timeoutQueue],
+      timestamp.toString()
+    );
+    if (result === null) {
       return null;
     }
-    return getResult as string;
+    return result as string;
   }
 
   async tpop(timeout: number): Promise<string | null> {
-    // TODO: fix logic here
     const startTimestamp = Date.now();
     let timestamp = startTimestamp;
     while (this) {
@@ -178,7 +181,7 @@ export class RedisBroker {
       }
 
       const exec = await this.tTryPop(execId);
-      if (!exec) return null;
+      if (!exec) continue;
       return exec;
     }
     return null;

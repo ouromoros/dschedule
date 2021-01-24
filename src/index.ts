@@ -117,7 +117,7 @@ class Scheduler {
 
   private async checkTimeoutTasks() {
     while (this.status === Status.RUNNING) {
-      const exe = await this.broker.tpop(500);
+      const exe = await this.broker.tpop(1000);
       if (!exe) continue;
       const execution = parseExec(exe);
       this.pushExecution(execution);
@@ -131,8 +131,8 @@ class Scheduler {
   private async checkBindTasks() {
     while (this.status === Status.RUNNING) {
       const queues = this.getBindTaskQueues();
-      if (queues.length === 0 ) {
-        break;
+      if (queues.length === 0) {
+        return;
       }
       const exe = await this.broker.rpop(queues);
       if (!exe) continue;
@@ -151,9 +151,7 @@ class Scheduler {
       if (!success) {
         throw new Error("task failed");
       }
-      if (exec.retry) {
-        this.broker.clearTimeout(exec.execId);
-      }
+      this.broker.clearTimeout(exec.execId);
     } catch (e) {
       this.logger.error(e);
     }

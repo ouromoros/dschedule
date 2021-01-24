@@ -43,7 +43,7 @@ describe("one producer one consumer", () => {
   test("with delay", (done) => {
     const s = createScheduler(schedulerOpts);
     const tid = "simple3";
-    const delayTime = 200;
+    const delayTime = 1000;
     const startTime = Date.now();
     s.bind(tid, () => {
       const duration = Date.now() - startTime;
@@ -55,7 +55,6 @@ describe("one producer one consumer", () => {
         s.stop();
         done(err);
       }
-      done();
       return true;
     });
     s.start();
