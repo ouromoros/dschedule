@@ -1,14 +1,33 @@
 # schedule-mq
 
-Client-side job scheduler for distributed application
+Persistent, reliable, robust client-side job scheduler for distributed application.
 
 ## Introduction
 
-`schedule-mq` is a robust client-side library for scheduling tasks.
+`schedule-mq` is a persistent, reliable robust client-side library for scheduling tasks.
 
-Distributed applications can use `schedule-mq` to easily add, schedule and execute jobs with a variety of options, including automatic failover, cronjob and delayed execution. It supports robust automatic retry, and offers persistence through machine crashes, network losses and everything tha can go wrong.
+Distributed applications can use `schedule-mq` to easily add, schedule and execute jobs with a variety of options, including automatic failover, cronjob and delayed execution. It supports robust automatic retry, and offers persistence through machine crashes, network losses and everything that can go wrong.
 
-`schedule-mq` uses Redis as its backend and is as reliable as the Redis server is. In case the Redis instance crashes, how much state (pending/delayed/retried tasks) `schedule-mq` can recover depends on Redis' persistence config and reliability.
+`schedule-mq` uses Redis as its backend and is as reliable as the Redis server is. In case the Redis instance crashes, how much state (pending/delayed/retried tasks) `schedule-mq` can recover depends on the underlying Redis server's persistence config and reliability. For full consistence guarantee, it is suggested to set the following in Redis config:
+
+```
+appendonly yes
+appendfsync always // slow performance
+```
+
+Note that the above config would induce a huge performance penalty on Redis as a whole. So for the less strict task scheduling requirements, it is suggested to just set `appendfsync` to `everysec`, which would allow loss of the newest data (in one or two senconds) when Redis server crashes, but can recover most data on restart.
+
+## Concepts
+
+### Scheduler
+
+Scheduler is the main entry for everything the library has to offer. It interacts with the Redis database and manage registered and binded tasks. Every scheduler instance works independently and cooperates through the underlying Redis database (if they have the same Redis config).
+
+Typically an application will have multiple instances of schedulers, with possibly different configs and run on possibly different machines (even in possibly different languages). They connect to the same Redis server and thus work together through it.
+
+### Task
+
+A task is uniquely identified by its `taskId`. When you `bind` a `taskId`, you define what work should be done when the corresponding task is scheduled. When you `register` (cron-like) or `push` (one-time) a task, you can specify additional options like `retry`, `retryTimeout` and `delay` to determine how the task should be scheduled. When we bind a handler to a task, we only know that an event named `taskId` is scheduled and maybe with additional `data`, but we don't care how they were configured (delayed or retried).
 
 ## Example
 
@@ -28,6 +47,17 @@ const scheduler = createScheduler({
     redisPrefix: "_my_prefix:", // defaults to "_schedule_mq:"
     pollInterval: 2000,  // defaults to 1000, generally needn't be changed
 });
+
+scheduler.bind("taskA", () => {
+    console.log("task");
+    return true;
+});
+scheduler.register("taskA", {
+    cronExpr: "*/10 * * * * *"
+});
+
+scheduler.start();
+```
 ```
 
 `bind()` and `register()` are used to configure the scheduler before `start()` is called. After `start()` the scheduler would be running, and you can not alter the configs any more unless `stop()`ed.
@@ -45,7 +75,20 @@ scheduler.register("taskA", {
 scheduler.start();
 ```
 
-The scheduler takes care of scheduling tasks one at a time and distribute tasks to multiple machines. When multiple instances of schedulers with the same config (same jobId and cronExpr) is running, the registerd task will be fired only once and run only once (actually it's *at-most-once* in the case of unrecoverage error). In a distributed environment, a fault-tolerant cron scheuduler is achieved via running multiple application instances with the same config.
+The scheduler takes care of scheduling registered tasks one at a time and distribute tasks to multiple machines. When multiple instances of schedulers with the same config (same jobId and cronExpr) is running, the registerd task will be fired only once and run only once (actually it's *at-most-once* in the case of unrecoverage error). In a distributed environment, a fault-tolerant cron scheuduler is achieved via running multiple application instances with the same config.
+
+```
+// Even if we have two schedulers with the same taskA config, taskA will be executed only once every 10 seconds
+scheduler.register("taskA", {
+    cronExpr: "*/10 * * * * *"
+});
+scheduler.start();
+
+scheduler2.register("taskA", {
+    cronExpr: "*/10 * * * * *"
+});
+scheduler2.start();
+```
 
 The scheduler will only be listening for/scheduling tasks and run them with the callback provided *after* `scheduler.run()` is called. It can also be stopped using `scheduler.stop()` method.
 
@@ -73,7 +116,7 @@ A task can be set to retry automatically in case an unrecoverable error (machine
 scheduler.push("taskA", { retry: true, retryTimeout: 5000 });
 ```
 
-A job can also carry data or be delayed. The data will be passed to the binded handler function.
+A task can also carry data or be delayed. The data will be passed to the binded handler function.
 
 ```js
 scheduler.bind("taskB", (data) => {
