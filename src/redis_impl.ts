@@ -54,12 +54,16 @@ export class RedisBroker {
   private timeoutQueue: string;
   private pollInterval: number;
 
-  constructor(clientOpts: redis.ClientOpts) {
+  constructor(
+    clientOpts: redis.ClientOpts,
+    prefix: string,
+    pollInterval: number
+  ) {
     this.clientOpts = clientOpts;
     this.bClientPool = [];
-    this.prefix = "_schedule_mq:";
-    this.timeoutQueue = `${this.prefix}:tq`;
-    this.pollInterval = 500;
+    this.prefix = prefix;
+    this.timeoutQueue = `${this.prefix}tq`;
+    this.pollInterval = pollInterval;
     this.client = handy.createNodeRedisClient(clientOpts);
   }
 

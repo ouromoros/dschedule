@@ -11,6 +11,8 @@ interface Handler {
 
 export interface SchedulerOptions {
   redisConfig: redis.ClientOpts;
+  redisPrefix?: string;
+  pollInterval?: number;
 }
 
 interface ScheduleOptions {
@@ -40,14 +42,23 @@ class Scheduler {
   private status: Status;
   private logger: Console;
   private broker: RedisBroker;
+  private opts: SchedulerOptions;
 
   constructor(opts: SchedulerOptions) {
     this.registerMap = {};
     this.bindMap = {};
     this.status = Status.STOPPED;
     this.logger = console;
+    this.opts = opts;
 
-    this.broker = new RedisBroker(opts.redisConfig);
+    opts.pollInterval = opts.pollInterval || 500;
+    opts.redisPrefix = opts.redisPrefix || "_schedule_mq:";
+
+    this.broker = new RedisBroker(
+      opts.redisConfig,
+      opts.redisPrefix!,
+      opts.pollInterval!
+    );
   }
 
   /**
@@ -117,7 +128,7 @@ class Scheduler {
 
   private async checkTimeoutTasks() {
     while (this.status === Status.RUNNING) {
-      const exe = await this.broker.tpop(1000);
+      const exe = await this.broker.tpop(this.opts.pollInterval!);
       if (!exe) continue;
       const execution = parseExec(exe);
       this.pushExecution(execution);
