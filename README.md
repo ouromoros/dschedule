@@ -58,7 +58,6 @@ scheduler.register("taskA", {
 
 scheduler.start();
 ```
-```
 
 `bind()` and `register()` are used to configure the scheduler before `start()` is called. After `start()` the scheduler would be running, and you can not alter the configs any more unless `stop()`ed.
 
@@ -77,7 +76,7 @@ scheduler.start();
 
 The scheduler takes care of scheduling registered tasks one at a time and distribute tasks to multiple machines. When multiple instances of schedulers with the same config (same jobId and cronExpr) is running, the registerd task will be fired only once and run only once (actually it's *at-most-once* in the case of unrecoverage error). In a distributed environment, a fault-tolerant cron scheuduler is achieved via running multiple application instances with the same config.
 
-```
+```js
 // Even if we have two schedulers with the same taskA config, taskA will be executed only once every 10 seconds
 scheduler.register("taskA", {
     cronExpr: "*/10 * * * * *"
