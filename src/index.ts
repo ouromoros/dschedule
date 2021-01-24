@@ -163,9 +163,7 @@ class Scheduler {
         throw new Error("task failed");
       }
       this.broker.clearTimeout(exec.execId);
-    } catch (e) {
-      this.logger.error(e);
-    }
+    } catch (e) {}
   }
 
   private pushExecution(execution: Execution) {

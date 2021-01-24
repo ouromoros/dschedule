@@ -1,4 +1,5 @@
 import { createScheduler } from "../src";
+import { sleep } from "../src/sleep";
 import { schedulerOpts } from "./conf";
 
 test("start scheduler", () => {
@@ -78,4 +79,43 @@ describe("one producer one consumer", () => {
     s.start();
     s.push(tid, { retry: true, retryTimeout: 200 });
   });
+});
+
+describe("schedule test", () => {
+  test("one schedule", async () => {
+    const taskId = "schedule1";
+    let count = 0;
+    const scheduler = createScheduler(schedulerOpts);
+    scheduler.bind(taskId, () => {
+      count += 1;
+      return true;
+    });
+    scheduler.register(taskId, { cronExpr: "*/1 * * * * *" })
+    scheduler.start();
+    await sleep(10000);
+    scheduler.stop();
+    expect(count).toBeGreaterThanOrEqual(9);
+  }, 20000);
+  test("multiple scheduler", async () => {
+    const taskId = "schedule2";
+    const schedulers = [];
+    let count = 0;
+    for (let i = 0; i < 10; i++) {
+      const scheduler = createScheduler(schedulerOpts);
+      scheduler.bind(taskId, () => {
+        count += 1;
+        return true;
+      });
+      scheduler.register(taskId, { cronExpr: "*/1 * * * * *" })
+      schedulers.push(scheduler);
+    }
+    for (const s of schedulers) {
+      s.start();
+    }
+    await sleep(10000);
+    for (const s of schedulers) {
+      s.start();
+    }
+    expect(count).toBeGreaterThan(9);
+  }, 20000);
 });

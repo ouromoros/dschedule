@@ -89,11 +89,12 @@ scheduler.push("taskB", { data: "im data", delay: 5000 });
 - [x] Write examples
 - [x] Write tests
 - [ ] More Complex tests
+- [ ] Dynamic config?
+
+### More distantly
+
 - [ ] Write Architecture
 - [ ] Benchmark
-
-## More distantly
-
 - [ ] Redis Cluster support
 - [ ] Add support for Redis stream
 - [ ] More powerful features
