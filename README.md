@@ -86,8 +86,9 @@ scheduler.push("taskB", { data: "im data", delay: 5000 });
 
 ## More
 
-- [ ] Write examples
-- [ ] Write tests
+- [x] Write examples
+- [x] Write tests
+- [ ] More Complex tests
 - [ ] Write Architecture
 - [ ] Benchmark
 
