@@ -5,20 +5,16 @@ test("start scheduler", () => {
   const s = createScheduler(schedulerOpts);
   s.start();
   s.stop();
+  s.clear();
 });
 
 describe("one producer one consumer", () => {
-  const s = createScheduler(schedulerOpts);
-
-  afterEach(() => {
-    s.stop();
-    s.clear();
-  });
-
   test("basic", (done) => {
-    const tid = "simple";
+    const s = createScheduler(schedulerOpts);
+    const tid = "simple1";
     s.bind(tid, () => {
       done();
+      s.stop();
       return true;
     });
     s.start();
@@ -26,13 +22,16 @@ describe("one producer one consumer", () => {
   });
 
   test("with data", (done) => {
-    const tid = "simple";
+    const s = createScheduler(schedulerOpts);
+    const tid = "simple2";
     const str = "whatever";
     s.bind(tid, (data) => {
       try {
         expect(data).toEqual(str);
+        s.stop();
         done();
       } catch (err) {
+        s.stop();
         done(err);
       }
       return true;
@@ -42,15 +41,18 @@ describe("one producer one consumer", () => {
   });
 
   test("with delay", (done) => {
-    const tid = "simple";
-    const delayTime = 1000;
+    const s = createScheduler(schedulerOpts);
+    const tid = "simple3";
+    const delayTime = 200;
     const startTime = Date.now();
     s.bind(tid, () => {
       const duration = Date.now() - startTime;
       try {
         expect(duration).toBeGreaterThan(delayTime);
+        s.stop();
         done();
       } catch (err) {
+        s.stop();
         done(err);
       }
       done();
@@ -61,18 +63,20 @@ describe("one producer one consumer", () => {
   });
 
   test("test timeout retry", (done) => {
-    const tid = "simple";
+    const s = createScheduler(schedulerOpts);
+    const tid = "simple4";
     let called = 0;
     s.bind(tid, () => {
       if (called === 0) {
         called += 1;
         return false;
       } else {
+        s.stop();
         done();
         return true;
       }
     });
     s.start();
-    s.push(tid, { retry: true, retryTimeout: 1000 });
+    s.push(tid, { retry: true, retryTimeout: 200 });
   });
 });

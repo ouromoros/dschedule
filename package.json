@@ -9,11 +9,11 @@
   "license": "ISC",
   "dependencies": {
     "cron-parser": "^3.1.0",
-    "ioredis": "^4.19.4",
+    "handy-redis": "^2.2.1",
+    "redis": "^3.0.2",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@types/ioredis": "^4.17.11",
     "@types/uuid": "^8.3.0",
     "@typescript-eslint/eslint-plugin": "^4.13.0",
     "@typescript-eslint/parser": "^4.13.0",

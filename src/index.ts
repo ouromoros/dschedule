@@ -1,5 +1,5 @@
 import { parseExpression } from "cron-parser";
-import ioredis from "ioredis";
+import * as redis from "redis";
 import { v4 as uuid } from "uuid";
 import { RedisBroker } from "./redis_impl";
 import { Execution, parseExec } from "./struct";
@@ -10,8 +10,7 @@ interface Handler {
 }
 
 export interface SchedulerOptions {
-  storageType: "redis";
-  storageConfig: ioredis.RedisOptions;
+  redisConfig: redis.ClientOpts;
 }
 
 interface ScheduleOptions {
@@ -42,13 +41,13 @@ class Scheduler {
   private logger: Console;
   private broker: RedisBroker;
 
-  constructor(redisConfig: ioredis.RedisOptions) {
+  constructor(opts: SchedulerOptions) {
     this.registerMap = {};
     this.bindMap = {};
     this.status = Status.STOPPED;
     this.logger = console;
 
-    this.broker = new RedisBroker(redisConfig);
+    this.broker = new RedisBroker(opts.redisConfig);
   }
 
   /**
@@ -118,7 +117,8 @@ class Scheduler {
 
   private async checkTimeoutTasks() {
     while (this.status === Status.RUNNING) {
-      const exe = await this.broker.tpop();
+      const exe = await this.broker.tpop(500);
+      if (!exe) continue;
       const execution = parseExec(exe);
       this.pushExecution(execution);
     }
@@ -131,6 +131,9 @@ class Scheduler {
   private async checkBindTasks() {
     while (this.status === Status.RUNNING) {
       const queues = this.getBindTaskQueues();
+      if (queues.length === 0 ) {
+        break;
+      }
       const exe = await this.broker.rpop(queues);
       if (!exe) continue;
       const exec = parseExec(exe);
@@ -157,7 +160,7 @@ class Scheduler {
   }
 
   private pushExecution(execution: Execution) {
-    this.broker.rpush(execution);
+    return this.broker.rpush(execution);
   }
 
   private pushDelayed(exec: Execution, delay: number) {
@@ -193,5 +196,5 @@ class Scheduler {
 }
 
 export function createScheduler(opts: SchedulerOptions): Scheduler {
-  return new Scheduler(opts.storageConfig);
+  return new Scheduler(opts);
 }
