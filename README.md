@@ -27,7 +27,7 @@ Typically an application will have multiple instances of schedulers, with possib
 
 ### Task
 
-A task is uniquely identified by its `taskId`. When you `bind` a `taskId`, you define what work should be done when the corresponding task is scheduled. When you `register` (cron-like) or `push` (one-time) a task, you can specify additional options like `retry`, `retryTimeout` and `delay` to determine how the task should be scheduled. When we bind a handler to a task, we only know that an event named `taskId` is scheduled and maybe with additional `data`, but we don't care how they were configured (delayed or retried).
+A task is uniquely identified by its `taskId`. When you `bind` a `taskId`, you define what work should be done when the corresponding task is scheduled. When you `register` (cron-like) or `push` (one-time) a task, you can specify additional options like `retry`, `retryTimeout` and `delay` to determine how the task should be scheduled. When the scheduler invokes a handler to a task, it only knows that an event named `taskId` is scheduled and maybe with additional `data`, and it doesn't care how they were configured (delayed or retried).
 
 ## Example
 
