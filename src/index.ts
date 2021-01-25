@@ -10,16 +10,44 @@ interface Handler {
 }
 
 export interface SchedulerOptions {
+  /**
+   * { host: "127.0.0.1", port: 6379 , password: "dummy", db: 0 }
+   */
   redisConfig: redis.ClientOpts;
+  /**
+   * The prefix for redis objects.
+   */
   redisPrefix?: string;
+  /**
+   * Interval between each polling from the time queue. Defaults to 1000 and usually needn't be changed.
+   */
   pollInterval?: number;
 }
 
 interface ScheduleOptions {
   cronExpr: string;
 
+  /**
+   * Setting `retry` to `true` so that the task will be automatically retried if it doesn't get executed successfully.
+   * One of `retryTimeout` or `retryStrategy` must be provided if `retry` is `true`.
+   *
+   * If `retryTimeout` is provided, the task will be retried indefinitely until it succeeds.
+   *
+   * If `retryStrategy` is provided, the task will be retried each time after waiting for the specified time. After the
+   * specified number of retries, the scheduler will drop the task whether it has succeeded in the last time or not.
+   */
   retry?: boolean;
+  /**
+   * The timeout between each retry.
+   */
   retryTimeout?: number;
+  /**
+   * The intervals between each retry and the number of retries. Will override `retryTimeout`.
+   *
+   * Value [500, 1000, 1500] means that the task will be retried three times (if fail),
+   * with the interval between each retry being 500, 1000, and 1500 milliseconds.
+   */
+  retryStrategy?: number[];
 }
 
 interface PushOptions {
@@ -27,8 +55,27 @@ interface PushOptions {
 
   delay?: number;
 
+  /**
+   * Setting `retry` to `true` so that the task will be automatically retried if it doesn't get executed successfully.
+   * One of `retryTimeout` or `retryStrategy` must be provided if `retry` is `true`.
+   *
+   * If `retryTimeout` is provided, the task will be retried indefinitely until it succeeds.
+   *
+   * If `retryStrategy` is provided, the task will be retried each time after waiting for the specified time. After the
+   * specified number of retries, the scheduler will drop the task whether it has succeeded in the last time or not.
+   */
   retry?: boolean;
+  /**
+   * The timeout between each retry.
+   */
   retryTimeout?: number;
+  /**
+   * The intervals between each retry and the number of retries. Will override `retryTimeout`.
+   *
+   * Value [500, 1000, 1500] means that the task will be retried three times (if fail),
+   * with the interval between each retry being 500, 1000, and 1500 milliseconds.
+   */
+  retryStrategy?: number[];
 }
 
 enum Status {
@@ -118,6 +165,9 @@ class Scheduler {
     }
   }
 
+  /**
+   * Clear the scheduler task configs
+   */
   clear() {
     if (this.status === Status.RUNNING) {
       throw Error("Can only clear when Scheduler is not running");
