@@ -17,18 +17,11 @@ appendfsync always // slow performance
 
 Note that the above config would induce a huge performance penalty on Redis as a whole. So for the less strict task scheduling requirements, it is suggested to just set `appendfsync` to `everysec`, which would allow loss of the newest data (in one or two senconds) when Redis server crashes, but can recover most data on restart.
 
-## Concepts
+## Install
 
-### Scheduler
-
-Scheduler is the main entry for everything the library has to offer. It interacts with the Redis database and manage registered and binded tasks. Every scheduler instance works independently and cooperates through the underlying Redis database (if they have the same Redis config).
-
-Typically an application will have multiple instances of schedulers, with possibly different configs and run on possibly different machines (even in possibly different languages). They connect to the same Redis server and thus work together through it.
-
-### Task
-
-A task is uniquely identified by its `taskId`. When you `bind` a `taskId`, you define what work should be done when the corresponding task is scheduled. When you `register` (cron-like) or `push` (one-time) a task, you can specify additional options like `retry`, `retryTimeout` and `delay` to determine how the task should be scheduled. When the scheduler invokes a handler to a task, it only knows that an event named `taskId` is scheduled and maybe with additional `data`, and it doesn't care how they were configured (delayed or retried).
-
+``` bash
+$ npm i schedule-mq
+```
 ## Example
 
 ### Basic Usage
@@ -125,6 +118,19 @@ scheduler.bind("taskB", (data) => {
 ...
 scheduler.push("taskB", { data: "im data", delay: 5000 });
 ```
+
+## Concepts
+
+### Scheduler
+
+Scheduler is the main entry for everything the `schedule-mq` has to offer. It interacts with the Redis database and manages registered and binded tasks. Every scheduler instance works independently and cooperates through the underlying Redis database (if they have the same Redis config).
+
+Typically an application will have multiple instances of schedulers, with possibly different configs and run on possibly different machines (even in possibly different languages). They connect to the same Redis server and thus work together through it.
+
+### Task
+
+A task is uniquely identified by its `taskId`. When you `bind` a `taskId`, you define what work should be done when the corresponding task is scheduled. When you `register` (cron-like) or `push` (one-time) a task, you can specify additional options like `retry`, `retryTimeout` and `delay` to determine how the task should be scheduled. When the scheduler invokes a handler to a task, it only knows that an event named `taskId` is scheduled and maybe with additional `data`, and it doesn't care how they were configured (delayed or retried).
+
 
 ## More
 
