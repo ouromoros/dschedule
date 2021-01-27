@@ -6,26 +6,37 @@ import { sleep } from "./sleep";
 
 const LuaScript = {
   /**
-   * KEYS[1]: execIdKey
-   * KEYS[2]: timeoutQueue
+   * KEYS[1]: timeoutQueue
    * ARGV[1]: currentTimestamp
+   * ARGV[2]: keyPrefix
+   *
+   * Returns:
+   * `nil` when the queue is empty.
+   * `timestamp` when no item can be popped
+   * `string` when the execution is present and is popped
    */
   tryPopTimeoutQueueScript: `
-local val = redis.call('GET', KEYS[1])
-if val == false then
+local val = redis.call('ZRANGE', KEYS[1], 0, 0, 'WITHSCORES')
+if val[1] == nil then
   return false
 end
-local exec = cjson.decode(val)
-local t = redis.call('ZSCORE', KEYS[2], exec.execId)
-if t == false or tonumber(t) > tonumber(ARGV[1]) then
+if tonumber(val[2]) > tonumber(ARGV[1]) then
+  return val[2]
+end
+local execKey = ARGV[2] .. val[1]
+local execVal = redis.call('GET', execKey)
+if execVal == nil then
+  redis.call('ZREM', KEYS[1], val[1])
   return false
 end
-if val.retry and val.retryTimeout then
-  redis.call('ZADD', KEYS[2], exec.execId, tonumber(ARGV[1]) + exec.retryTimeout, '')
+local exec = cjson.decode(execVal)
+if exec.retry and exec.retryTimeout then
+  redis.call('ZADD', KEYS[1], tonumber(ARGV[1]) + exec.retryTimeout, val[1])
 else
-  redis.call('ZREM', KEYS[2], exec.execId)
+  redis.call('ZREM', KEYS[1], val[1])
+  redis.call('DEL', execKey)
 end
-return val
+return execVal
 `,
   /**
    * KEYS[1]: lockName
@@ -148,14 +159,14 @@ export class RedisBroker {
     return [results[0], parseInt(results[1])];
   }
 
-  async tTryPop(execId: string): Promise<string | null> {
+  async tTryPop(): Promise<string | null> {
     const timestamp = Date.now();
-    const execKey = this.k(execId);
     const result = await this.client.eval(
       LuaScript.tryPopTimeoutQueueScript,
-      2,
-      [execKey, this.timeoutQueue],
-      timestamp.toString()
+      1,
+      [this.timeoutQueue],
+      timestamp.toString(),
+      this.prefix
     );
     if (result === null) {
       return null;
@@ -163,32 +174,16 @@ export class RedisBroker {
     return result as string;
   }
 
-  async tpop(timeout: number): Promise<string | null> {
-    const startTimestamp = Date.now();
-    let timestamp = startTimestamp;
-    while (this) {
-      if (Date.now() - startTimestamp > timeout) {
-        return null;
-      }
-
-      const duration = Math.min(this.pollInterval, timestamp - Date.now());
-      await sleep(duration);
-
-      const [execId, nextTime] = await this.tpeek();
-      if (!execId || !nextTime) {
-        timestamp = Date.now() + this.pollInterval;
-        continue;
-      }
-      if (nextTime > timestamp) {
-        timestamp = nextTime;
-        continue;
-      }
-
-      const exec = await this.tTryPop(execId);
-      if (!exec) continue;
-      return exec;
+  async tpop(): Promise<string | null | number> {
+    const exec = await this.tTryPop();
+    if (exec === null) {
+      return null;
     }
-    return null;
+    const t = parseInt(exec);
+    if (!isNaN(t)) {
+      return t;
+    }
+    return exec;
   }
 
   /**

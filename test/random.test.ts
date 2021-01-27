@@ -19,7 +19,7 @@ test("basic", (done) => {
   const ss = [];
   const n = 1000;
   const randomData = generateData(n);
-  const tid = "simple2";
+  const tid = "randome1";
 
   const received: string[] = [];
   for (let i = 0; i < 20; i++) {
@@ -29,6 +29,7 @@ test("basic", (done) => {
       if (received.length === n) {
         expect(randomData.sort()).toEqual(received.sort());
         done();
+        s.stop()
       }
       return true;
     });
@@ -40,20 +41,22 @@ test("basic", (done) => {
   }
 });
 
-test.only("with delay", (done) => {
+test("with delay", (done) => {
   const ss = [];
-  const n = 10000;
+  const n = 1000;
   const randomData = generateData(n);
-  const tid = "simple2";
+  const tid = "random2";
 
   const received: string[] = [];
   for (let i = 0; i < 20; i++) {
     const s = createScheduler(schedulerOpts);
     s.bind(tid, (data) => {
       received.push(data!);
+      console.log(received.length)
       if (received.length === n) {
         expect(randomData.sort()).toEqual(received.sort());
         done();
+        s.stop();
       }
       return true;
     });

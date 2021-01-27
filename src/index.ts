@@ -128,10 +128,15 @@ class Scheduler {
 
   private async checkTimeoutTasks() {
     while (this.status === Status.RUNNING) {
-      const exe = await this.broker.tpop(this.opts.pollInterval!);
-      if (!exe) continue;
-      const execution = parseExec(exe);
-      this.pushExecution(execution);
+      const exe = await this.broker.tpop();
+      if (!exe) {
+        await sleep(this.opts.pollInterval!);
+      } else if (typeof exe === "number") {
+        await sleep(exe - Date.now());
+      } else {
+        const execution = parseExec(exe);
+        this.pushExecution(execution);
+      }
     }
   }
 
