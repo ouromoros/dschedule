@@ -41,13 +41,6 @@ interface ScheduleOptions {
    * The timeout between each retry.
    */
   retryTimeout?: number;
-  /**
-   * The intervals between each retry and the number of retries. Will override `retryTimeout`.
-   *
-   * Value [500, 1000, 1500] means that the task will be retried three times (if fail),
-   * with the interval between each retry being 500, 1000, and 1500 milliseconds.
-   */
-  retryStrategy?: number[];
 }
 
 interface PushOptions {
@@ -69,13 +62,6 @@ interface PushOptions {
    * The timeout between each retry.
    */
   retryTimeout?: number;
-  /**
-   * The intervals between each retry and the number of retries. Will override `retryTimeout`.
-   *
-   * Value [500, 1000, 1500] means that the task will be retried three times (if fail),
-   * with the interval between each retry being 500, 1000, and 1500 milliseconds.
-   */
-  retryStrategy?: number[];
 }
 
 enum Status {
@@ -87,7 +73,6 @@ class Scheduler {
   private registerMap: Record<string, ScheduleOptions>;
   private bindMap: Record<string, Handler>;
   private status: Status;
-  private logger: Console;
   private broker: RedisBroker;
   private opts: SchedulerOptions;
 
@@ -95,7 +80,6 @@ class Scheduler {
     this.registerMap = {};
     this.bindMap = {};
     this.status = Status.STOPPED;
-    this.logger = console;
     this.opts = opts;
 
     opts.pollInterval = opts.pollInterval || 1000;
