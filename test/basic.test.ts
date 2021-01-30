@@ -90,7 +90,7 @@ describe("schedule test", () => {
       count += 1;
       return true;
     });
-    scheduler.register(taskId, { cronExpr: "*/1 * * * * *" })
+    scheduler.register(taskId, { cronExpr: "*/1 * * * * *" });
     scheduler.start();
     await sleep(10000);
     scheduler.stop();
@@ -106,7 +106,7 @@ describe("schedule test", () => {
         count += 1;
         return true;
       });
-      scheduler.register(taskId, { cronExpr: "*/1 * * * * *" })
+      scheduler.register(taskId, { cronExpr: "*/1 * * * * *" });
       schedulers.push(scheduler);
     }
     for (const s of schedulers) {
