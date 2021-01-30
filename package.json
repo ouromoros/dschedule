@@ -1,6 +1,6 @@
 {
   "name": "schedule-mq",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "description": "Client-side job scheduler for distributed applications",
   "scripts": {
     "test": "jest"
